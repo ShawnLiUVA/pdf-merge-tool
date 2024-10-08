@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PDF Merge Tool</title>
+  <style>
+    .pdf-list { list-style-type: none; padding: 0; }
+    .pdf-item { margin-bottom: 10px; }
+    button { margin-left: 10px; }
+    .order-label { font-weight: bold; margin-right: 10px; }
+  </style>
+</head>
+<body>
+  <h1>Merge PDFs in a Custom Order</h1>
+  
+  <!-- File input -->
+  <input type="file" id="pdfFiles" accept="application/pdf" multiple>
+  <button onclick="handleFiles()">Upload Files</button>
+
+  <!-- List for reordering PDFs -->
+  <ul id="pdfList" class="pdf-list"></ul>
+  
+  <!-- Merge and download buttons -->
+  <button onclick="mergePDFs()">Merge PDFs</button>
+  <a id="downloadLink" style="display:none">Download Merged PDF</a>
+
+  <script>
+    let pdfFilesArray = [];
+
+    // Handle the uploaded files and display them for ordering
+    function handleFiles() {
+      const fileInput = document.getElementById('pdfFiles');
+      pdfFilesArray = Array.from(fileInput.files); // Store uploaded files
+      
+      renderFileList(); // Render the file list
+    }
+
+    // Function to render the file list in the current order
+    function renderFileList() {
+      const pdfList = document.getElementById('pdfList');
+      pdfList.innerHTML = ''; // Clear the list first
+
+      // Render each PDF file with order, file name, and move buttons
+      pdfFilesArray.forEach((file, index) => {
+        const listItem = document.createElement('li');
+        listItem.className = 'pdf-item';
+
+        // Add a label to show the current order of the PDF
+        const orderLabel = document.createElement('span');
+        orderLabel.className = 'order-label';
+        orderLabel.textContent = `Order: ${index + 1}`;
+
+        // Display the file name
+        const fileName = document.createElement('span');
+        fileName.textContent = file.name;
+
+        // Move up button
+        const moveUpButton = document.createElement('button');
+        moveUpButton.textContent = '↑ Move Up';
+        moveUpButton.onclick = () => {
+          moveUp(index);
+          renderFileList(); // Re-render the list with new order
+        };
+
+        // Move down button
+        const moveDownButton = document.createElement('button');
+        moveDownButton.textContent = '↓ Move Down';
+        moveDownButton.onclick = () => {
+          moveDown(index);
+          renderFileList(); // Re-render the list with new order
+        };
+
+        // Add elements to the list item
+        listItem.appendChild(orderLabel);
+        listItem.appendChild(fileName);
+        listItem.appendChild(moveUpButton);
+        listItem.appendChild(moveDownButton);
+
+        // Append the item to the list
+        pdfList.appendChild(listItem);
+      });
+    }
+
+    // Move a file up in the order
+    function moveUp(index) {
+      if (index === 0) return; // Cannot move the first item up
+      [pdfFilesArray[index - 1], pdfFilesArray[index]] = [pdfFilesArray[index], pdfFilesArray[index - 1]];
+    }
+
+    // Move a file down in the order
+    function moveDown(index) {
+      if (index === pdfFilesArray.length - 1) return; // Cannot move the last item down
+      [pdfFilesArray[index], pdfFilesArray[index + 1]] = [pdfFilesArray[index + 1], pdfFilesArray[index]];
+    }
+
+    // Merge the PDFs in the selected order
+    async function mergePDFs() {
+      const mergedPdf = await PDFLib.PDFDocument.create();
+
+      for (const pdfFile of pdfFilesArray) {
+        const arrayBuffer = await pdfFile.arrayBuffer();
+        const pdf = await PDFLib.PDFDocument.load(arrayBuffer);
+        const copiedPages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
+        copiedPages.forEach((page) => mergedPdf.addPage(page));
+      }
+
+      const mergedPdfBytes = await mergedPdf.save();
+      const blob = new Blob([mergedPdfBytes], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+
+      const downloadLink = document.getElementById('downloadLink');
+      downloadLink.href = url;
+      downloadLink.download = 'merged.pdf';
+      downloadLink.style.display = 'block';
+      downloadLink.textContent = 'Download Merged PDF';
+    }
+  </script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+
+
+</body>
+</html>
